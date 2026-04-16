@@ -2,16 +2,15 @@ $fa = 1;
 $fs = 0.4;
 
 centralLong = 235;
-centralLarg = 26;
+centralLarg = 38;
 centralHeight = 7;
 offsetZ = -3;
 
 module mainCenterBlock(hollow){
     difference()
     {
-        color("red")
-            translate([0,-30,0])
-                cube([30,90,13],center=true);
+        translate([0,-30,0])
+            cube([30,90,13],center=true);
         
         if(hollow){
             translate([0,-30,0])
@@ -70,91 +69,154 @@ module addCenterBlock(){
     }
 }
 
-module step(height, larg, long)
-{
-    borderRadius = larg / 2;
 
+nbSteps = 4;
+stepHeight = 2;
+
+union()
+{
+    translate([0,0,-(nbSteps)*stepHeight])
+        newAddSteps(nbSteps, stepHeight);
+    
+    scale([1.1,1,1])
+        addCenterBlock();
+}
+
+module newStep(height, larg, longTotal){
+    offset = 7;     // rétrécissement des côtés
+    long = longTotal/2;
+    
     union()
     {
-        difference(){
-            translate([0,0,offsetZ])
-                cube([larg, long ,height],center=true);
+        difference()
+        {     
+            baseStep(height, larg, long);       
+            
+            /* coin des arrondis*/
+            translate([(borderRadius/2), -(long)+borderRadius/2, 0])
+                cube([borderRadius+1, borderRadius+1, height+10],center=true);
 
-            translate([(borderRadius/2), -((long/2)-borderRadius/2), offsetZ])
-                cube([borderRadius+1, borderRadius+1, height+1],center=true);
-
-            translate([(borderRadius/2), (long/2)-borderRadius/2, offsetZ])
-                cube([borderRadius+1, borderRadius+1, height+1],center=true);
-
+            translate([(borderRadius/2), (long)-borderRadius/2, 0])
+                cube([borderRadius+1, borderRadius+1, height+10],center=true);
         }
-        translate([0, (long/2)-borderRadius+0.001, offsetZ])
-            cylinder(h=height,r=borderRadius, center=true);
-        translate([0, -((long/2)-borderRadius)-0.001, offsetZ])
-            cylinder(h=height,r=borderRadius, center=true);    
+    
+        //ellipses
+        borderRadius = larg / 2;
+        
+        difference()
+        {
+            translate([-3.5, (long)-borderRadius+0.001, 0])
+                scale([1.12, 1.4, 2])
+                    cylinder(h=height-1,r=borderRadius, center=true);
+
+            translate([-larg+borderRadius/2, (long)-borderRadius/2, 0])
+                rotate([0,0,4])
+                    cube([borderRadius+1, 70, height+1],center=true);
+        }
+        
+        difference()
+        {
+            translate([-3.5, -((long)-borderRadius)-0.001, 0])
+                scale([1.12, 1.4, 2])
+                    cylinder(h=height-1,r=borderRadius, center=true); 
+            
+            translate([-larg+borderRadius/2, -(long)+borderRadius/2, 0])
+                    rotate([0,0,-4])
+                        cube([borderRadius+1, 70, height+1],center=true);
+        }
     }
 }
 
-module addSteps(nbStep, stepHeight){
-    lastStepDepth = 1.3;
+module baseStep(height, larg, long){
+    offset = 7;     // rétrécissement des côtés
+    
+    union()
+    {    
+        translate([0,-long,0]){
+            linear_extrude(height = stepHeight, center = true) {
+                polygon(points = [
+                    [-larg/2, 0],              // point 0: bas gauche
+                    [larg/2, 0],               // point 1: bas droit
+                    [(larg - 2*offset)/2, long],    // point 2: haut droit (rétrécit)
+                    [-(larg - 2*offset)/2, long]    // point 3: haut gauche (rétrécit)
+                ]);
+            }
+        }
+                
+        rotate([0,0,180]){
+            translate([0,-long,0])
+                linear_extrude(height = stepHeight, center = true) {
+                    polygon(points = [
+                        [-larg/2, 0],              // point 0: bas gauche
+                        [larg/2, 0],               // point 1: bas droit
+                        [(larg - 2*offset)/2, long],    // point 2: haut droit (rétrécit)
+                        [-(larg - 2*offset)/2, long]    // point 3: haut gauche (rétrécit)
+                    ]);
+                }
+        }          
+    }
+    
+}
+
+
+module newAddSteps(nbStep, stepHeight){
     sizeDiffCoef = 3;
 
     union()
     {
-        difference(){
+        difference()
+        {
             union()
             {
                 for (i=[1:1:nbStep]) {
-                    sizeDiff = i*sizeDiffCoef;
+                    sizeDiff =  1-((i-1)*0.055);
+                    sizeDiff2 =  1-((i-1)*0.1);
                     translate([0,0,stepHeight*i])
-                        step(stepHeight, centralLarg-sizeDiff, centralLong-sizeDiff);
+                        scale([sizeDiff2, sizeDiff, 1])
+                            newStep(stepHeight, centralLarg, centralLong);
                 }
             }
             
-            sizeDiff = nbStep*sizeDiffCoef;
-            translate([0,0,stepHeight*nbStep])
-                step(stepHeight+0.1, centralLarg-sizeDiff-lastStepDepth, centralLong-sizeDiff-lastStepDepth);
+            sizeDiff =  1-(nbStep*0.05);
+            sizeDiff2 =  1-(nbStep*0.1);
+            lastStepDepth = 0.3;
+            translate([0,0,stepHeight*nbStep+lastStepDepth])
+                scale([sizeDiff2, sizeDiff, 1])
+                    newStep(stepHeight+0.1, 
+                            centralLarg+0.1, 
+                            centralLong+0.1);
+            
         }
     
-        beamWidth = 0.1;
-        beamHeight = 0.5;
-        margin = 0.5;
-        sizeDiff = (nbStep)*sizeDiffCoef;
-        nbBeams = 40;
         color("blue")
-            translate([0,0,stepHeight*(nbStep-1)+beamHeight])
-                difference()
-                {
-                    width=centralLarg-sizeDiff;
-                    step(beamHeight, width, centralLong-sizeDiff);
-                    union(){
-                        translate([(margin+beamWidth),0,-stepHeight*(stepHeight/beamHeight)+beamHeight])
-                            cube([beamWidth, centralLong-sizeDiff-lastStepDepth, beamHeight],center=true);
-                        for(j=[1:1:nbBeams]){
-                            translate([width-(margin+beamWidth)*j,0,-stepHeight*(stepHeight/beamHeight)+beamHeight])
-                            cube([beamWidth, centralLong-sizeDiff-lastStepDepth, beamHeight],center=true);
-                      }
-                    }
-                }              
+            addStepBeams(nbStep, sizeDiffCoef, stepHeight);
     }
 }
 
+module addStepBeams(nbStep, sizeDiffCoef, stepHeight){    
+    beamWidth = 0.5;
+    margin = 0.5;
+    sizeDiff = (nbStep)*sizeDiffCoef;
 
-nbSteps = 4;
-stepHeight = 1.3;
-
-union()
-{
-    difference()
-    {
-        translate([0,0,-(nbSteps)*stepHeight])
-            addSteps(nbSteps, stepHeight);
-
-        //pin au centre a 24 mm, juste des trous ?
-        translate([0, centralLong/2-24, -8])
-            cylinder(4, 4, 4, center = true);
-        
-        translate([0, -centralLong/2+24, -8])
-            cylinder(4, 4, 4, center = true);
-    }
-    addCenterBlock();
+    sizeDiff =  1-(nbStep*0.05);
+    sizeDiff2 =  1-(nbStep*0.1);
+    lastStepDepth = 0.3;
+    
+    translate([0,0,stepHeight*nbStep-stepHeight/2])
+        difference()
+        {
+            scale([sizeDiff2, sizeDiff, 1])
+                newStep(stepHeight+0.1, 
+                        centralLarg+0.1, 
+                        centralLong+0.1);
+            
+            translate([-15,0,0])//magic numbers 
+                for(j=[1:1:25]){
+                    translate([j,0,0])
+                        cube([beamWidth, 
+                                centralLong-sizeDiff-lastStepDepth, 
+                                100],
+                            center=true);
+            }
+        }
 }
